@@ -7,3 +7,6 @@
 [submodule "payment-service"]
 	path = payment-service
 	url = https://github.com/yashmallik/payment-service
+[submodule "inventory-service"]
+	path = inventory-service
+	url = https://github.com/hrp13/inventory-service.git
