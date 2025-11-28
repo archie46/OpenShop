@@ -1,0 +1,1708 @@
+openapi: 3.0.3
+info:
+  title: OpenShop E-Commerce Microservices API
+  description: |
+    Comprehensive API documentation for OpenShop - A production-grade e-commerce platform built with microservices architecture.
+    
+    ## Architecture Overview
+    OpenShop implements an event-driven microservices architecture with the following key services:
+    - **API Gateway** (Port 8080): Single entry point for all client requests
+    - **User Service** (Port 8081): Authentication, user management, JWT
+    - **Product Service** (Port 8082): Product catalog with GraphQL support
+    - **Order Service** (Port 8083): Order management with Saga orchestration
+    - **Payment Service** (Port 8084): Payment processing with idempotency
+    - **Cart Service** (Port 8085): Shopping cart management
+    - **Inventory Service** (Port 8086): Stock management and reservations
+    - **Notification Service** (Port 8087): Multi-channel notifications
+    - **Shipping Service** (Port 8088): Shipment tracking and fulfillment
+    
+    ## Key Features
+    - JWT-based authentication and authorization
+    - Event-driven communication via Apache Kafka
+    - Distributed transaction management using Saga pattern
+    - Circuit breaker pattern for fault tolerance
+    - GraphQL API for flexible product queries
+    - Database per service pattern
+    - Idempotent operations for critical workflows
+    
+    ## Getting Started
+    1. Register a new user account using POST /api/auth/register
+    2. Login to receive a JWT token using POST /api/auth/login
+    3. Include the JWT token in the Authorization header as "Bearer {token}"
+    4. The API Gateway will extract user information and pass it via headers (X-User-Id, X-User-Role)
+    
+  version: 1.0.0
+  contact:
+    name: OpenShop Development Team
+    url: https://github.com/CuriousRadhika/OpenShop
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local Development - API Gateway
+  - url: http://localhost:8081
+    description: Local Development - User Service (Direct)
+  - url: http://localhost:8082
+    description: Local Development - Product Service (Direct)
+  - url: http://localhost:8083
+    description: Local Development - Order Service (Direct)
+  - url: http://localhost:8084
+    description: Local Development - Payment Service (Direct)
+  - url: http://localhost:8085
+    description: Local Development - Cart Service (Direct)
+  - url: http://localhost:8086
+    description: Local Development - Inventory Service (Direct)
+  - url: http://localhost:8088
+    description: Local Development - Shipping Service (Direct)
+
+tags:
+  - name: Authentication
+    description: User authentication and registration endpoints
+  - name: Users
+    description: User profile management
+  - name: Products
+    description: Product catalog management (REST & GraphQL)
+  - name: Cart
+    description: Shopping cart operations
+  - name: Orders
+    description: Order management and saga orchestration
+  - name: Payments
+    description: Payment processing and webhooks
+  - name: Inventory
+    description: Stock management and reservations
+  - name: Shipping
+    description: Shipment tracking and fulfillment
+
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: |
+        Create a new user account. Username and email must be unique.
+        Default role is CUSTOMER unless specified as SELLER.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              customer:
+                summary: Register as Customer
+                value:
+                  username: johndoe
+                  email: john@example.com
+                  password: SecurePass123!
+                  name: John Doe
+                  role: CUSTOMER
+              seller:
+                summary: Register as Seller
+                value:
+                  username: janeshop
+                  email: jane@example.com
+                  password: SecurePass123!
+                  name: Jane's Shop
+                  role: SELLER
+      responses:
+        '201':
+          description: User registered successfully
+          headers:
+            Location:
+              description: URI of the created user resource
+              schema:
+                type: string
+                example: /api/users/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '409':
+          description: Username or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                usernameExists:
+                  value:
+                    error: Username already exists
+                emailExists:
+                  value:
+                    error: Email already exists
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate user
+      description: |
+        Authenticate with username and password to receive a JWT token.
+        The token should be included in subsequent requests as Bearer token.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: johndoe
+              password: SecurePass123!
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                expiresAt: 1732715400000
+                user:
+                  id: 1
+                  username: johndoe
+                  email: john@example.com
+                  name: John Doe
+                  role: CUSTOMER
+                  active: true
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      description: Retrieve the profile details of the authenticated user
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    put:
+      tags:
+        - Users
+      summary: Update current user profile
+      description: Update the authenticated user's profile information
+      operationId: updateCurrentUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: User not found
+
+  /api/products:
+    get:
+      tags:
+        - Products
+      summary: Get all products
+      description: |
+        Retrieve a list of all products. 
+        - CUSTOMER role: Only sees AVAILABLE products
+        - SELLER role: Sees only their own products (all statuses)
+        - No authentication: Only sees AVAILABLE products
+      operationId: getAllProducts
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: X-User-Id
+          in: header
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+        - name: X-User-Role
+          in: header
+          description: User role (injected by API Gateway)
+          schema:
+            type: string
+            enum: [CUSTOMER, SELLER, ADMIN]
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    
+    post:
+      tags:
+        - Products
+      summary: Create a new product
+      description: Create a new product. Only accessible to users with SELLER role.
+      operationId: createProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-User-Id
+          in: header
+          required: true
+          description: Seller ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+        - name: X-User-Role
+          in: header
+          required: true
+          description: Must be SELLER
+          schema:
+            type: string
+            enum: [SELLER]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+            example:
+              name: Wireless Bluetooth Headphones
+              description: Premium noise-cancelling headphones with 30-hour battery life
+              category: Electronics
+              price: 149.99
+              currency: USD
+              sku: WBH-001
+              imageUrl: https://example.com/images/headphones.jpg
+      responses:
+        '201':
+          description: Product created successfully
+          headers:
+            Location:
+              description: URI of the created product
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Only sellers can create products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Get product by ID
+      description: Retrieve a specific product by its ID
+      operationId: getProductById
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product UUID
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Id
+          in: header
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+        - name: X-User-Role
+          in: header
+          description: User role (injected by API Gateway)
+          schema:
+            type: string
+            enum: [CUSTOMER, SELLER, ADMIN]
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    put:
+      tags:
+        - Products
+      summary: Update a product
+      description: Update an existing product. Only the seller who created the product can update it.
+      operationId: updateProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product UUID
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Id
+          in: header
+          required: true
+          description: Seller ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+        - name: X-User-Role
+          in: header
+          required: true
+          description: Must be SELLER
+          schema:
+            type: string
+            enum: [SELLER]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Not authorized to update this product
+        '404':
+          description: Product not found
+
+  /graphql:
+    post:
+      tags:
+        - Products
+      summary: GraphQL endpoint for product queries
+      description: |
+        Execute GraphQL queries for flexible product catalog access.
+        
+        Example queries:
+        ```graphql
+        query {
+          products(filter: {category: "Electronics"}, sort: {field: PRICE, direction: ASC}) {
+            id
+            name
+            description
+            price
+            currency
+            category
+            imageUrl
+          }
+        }
+        
+        query {
+          product(id: "123e4567-e89b-12d3-a456-426614174000") {
+            id
+            name
+            description
+            price
+            seller {
+              id
+              name
+            }
+          }
+        }
+        ```
+      operationId: graphqlQuery
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: GraphQL query string
+                variables:
+                  type: object
+                  description: Query variables
+            example:
+              query: |
+                query GetProducts($category: String) {
+                  products(filter: {category: $category}) {
+                    id
+                    name
+                    price
+                    category
+                  }
+                }
+              variables:
+                category: Electronics
+      responses:
+        '200':
+          description: GraphQL query executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                  errors:
+                    type: array
+                    items:
+                      type: object
+
+  /api/cart:
+    get:
+      tags:
+        - Cart
+      summary: Get user's cart
+      description: Retrieve the shopping cart for the authenticated user
+      operationId: getCart
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-User-Id
+          in: header
+          required: true
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Cart retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/cart/items:
+    post:
+      tags:
+        - Cart
+      summary: Add or update cart item
+      description: |
+        Add a product to cart or update quantity. 
+        - Positive quantity: Add/update item
+        - Negative quantity: Remove item (quantity will be made positive for removal)
+      operationId: updateCartItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-User-Id
+          in: header
+          required: true
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCartItemRequest'
+            examples:
+              addItem:
+                summary: Add item to cart
+                value:
+                  productId: 123e4567-e89b-12d3-a456-426614174000
+                  quantity: 2
+              removeItem:
+                summary: Remove item from cart
+                value:
+                  productId: 123e4567-e89b-12d3-a456-426614174000
+                  quantity: -1
+      responses:
+        '200':
+          description: Cart updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          description: Invalid request or insufficient stock
+
+    delete:
+      tags:
+        - Cart
+      summary: Clear cart
+      description: Remove all items from the user's cart
+      operationId: clearCart
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-User-Id
+          in: header
+          required: true
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Cart cleared successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/orders:
+    post:
+      tags:
+        - Orders
+      summary: Create order (checkout)
+      description: |
+        Create an order from the user's cart. This initiates a distributed saga:
+        1. Reserve inventory
+        2. Process payment
+        3. Create shipment
+        4. Send notifications
+        
+        Supports idempotency via X-Idempotency-Key header.
+      operationId: createOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-User-Id
+          in: header
+          required: true
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+        - name: X-Idempotency-Key
+          in: header
+          description: Idempotency key to prevent duplicate orders
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+            example:
+              shippingAddress: 123 Main St, Springfield, IL 62701
+              paymentMethod: CREDIT_CARD
+      responses:
+        '200':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Cart is empty or invalid request
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Cart is empty. Cannot checkout.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/orders/user:
+    get:
+      tags:
+        - Orders
+      summary: Get user's orders
+      description: Retrieve all orders for the authenticated user
+      operationId: getUserOrders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-User-Id
+          in: header
+          required: true
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+        - name: X-User-Role
+          in: header
+          description: User role (injected by API Gateway)
+          schema:
+            type: string
+            enum: [CUSTOMER, SELLER, ADMIN]
+      responses:
+        '200':
+          description: Orders retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/orders/{orderId}:
+    get:
+      tags:
+        - Orders
+      summary: Get order by ID
+      description: Retrieve a specific order. Users can only view their own orders unless they are admins.
+      operationId: getOrderById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Order UUID
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Id
+          in: header
+          required: true
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+        - name: X-User-Role
+          in: header
+          description: User role (injected by API Gateway)
+          schema:
+            type: string
+            enum: [CUSTOMER, SELLER, ADMIN]
+      responses:
+        '200':
+          description: Order retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Not authorized to view this order
+        '404':
+          description: Order not found
+
+  /api/orders/{orderId}/cancel:
+    post:
+      tags:
+        - Orders
+      summary: Cancel an order
+      description: |
+        Cancel an existing order. This triggers compensation logic:
+        - Restore inventory
+        - Refund payment
+        - Cancel shipment
+      operationId: cancelOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Order UUID
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Id
+          in: header
+          required: true
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Order cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Order cannot be cancelled
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Order not found
+
+  /api/payments:
+    post:
+      tags:
+        - Payments
+      summary: Initiate payment
+      description: |
+        Process a payment for an order. Supports idempotency.
+        Typically called internally by Order Service via Kafka events.
+      operationId: initiatePayment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Idempotency key (defaults to {orderId}-payment if not provided)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+            example:
+              orderId: 123e4567-e89b-12d3-a456-426614174000
+              userId: 1
+              amount: 299.98
+              currency: USD
+              paymentMethod: CREDIT_CARD
+      responses:
+        '200':
+          description: Payment initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        '400':
+          description: Invalid payment request
+
+  /api/payments/{orderId}:
+    get:
+      tags:
+        - Payments
+      summary: Get payment status
+      description: Retrieve payment information for a specific order
+      operationId: getPaymentStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Order UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Payment information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '404':
+          description: Payment not found
+
+  /api/payments/webhook:
+    post:
+      tags:
+        - Payments
+      summary: Payment gateway webhook
+      description: |
+        Webhook endpoint for payment gateway callbacks.
+        Processes payment status updates and publishes events to Kafka.
+      operationId: handlePaymentWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentWebhook'
+            example:
+              transactionId: txn_1234567890
+              orderId: 123e4567-e89b-12d3-a456-426614174000
+              status: SUCCESS
+              amount: 299.98
+              currency: USD
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Webhook received
+
+  /api/inventory/{productId}:
+    get:
+      tags:
+        - Inventory
+      summary: Get inventory for product
+      description: Retrieve current stock level for a specific product
+      operationId: getInventory
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: Product UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Inventory retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryRequest'
+        '404':
+          description: Inventory not found
+
+  /api/inventory:
+    post:
+      tags:
+        - Inventory
+      summary: Update inventory
+      description: |
+        Create or update inventory for a product.
+        - Positive quantity: Add stock
+        - Negative quantity: Reduce stock
+        
+        Only accessible to SELLER role or internal services.
+      operationId: updateInventory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-User-Role
+          in: header
+          description: Must be SELLER for manual updates
+          schema:
+            type: string
+            enum: [SELLER]
+        - name: X-User-Id
+          in: header
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+        - name: X-Service-Name
+          in: header
+          description: Service name for internal calls
+          schema:
+            type: string
+            enum: [product-service, order-service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryRequest'
+            examples:
+              addStock:
+                summary: Add stock
+                value:
+                  productId: 123e4567-e89b-12d3-a456-426614174000
+                  quantity: 100
+              reduceStock:
+                summary: Reduce stock
+                value:
+                  productId: 123e4567-e89b-12d3-a456-426614174000
+                  quantity: -5
+      responses:
+        '200':
+          description: Inventory updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Inventory'
+        '400':
+          description: Invalid request or insufficient stock
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Only sellers or internal services can update inventory
+
+  /api/shipping:
+    post:
+      tags:
+        - Shipping
+      summary: Create shipment
+      description: |
+        Create a new shipment for an order.
+        Typically called internally by Order Service via Kafka events.
+      operationId: createShipment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: query
+          required: true
+          description: Order UUID
+          schema:
+            type: string
+            format: uuid
+        - name: address
+          in: query
+          required: true
+          description: Shipping address
+          schema:
+            type: string
+        - name: X-User-Id
+          in: header
+          required: true
+          description: User ID (injected by API Gateway)
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Shipment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+
+  /api/shipping/{orderId}:
+    get:
+      tags:
+        - Shipping
+      summary: Get shipment by order ID
+      description: Retrieve shipment information for a specific order
+      operationId: getShipment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Order UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Shipment retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+        '404':
+          description: Shipment not found
+
+  /api/shipping/{shipmentId}/status:
+    put:
+      tags:
+        - Shipping
+      summary: Update shipment status
+      description: Update the status of a shipment (e.g., PENDING, SHIPPED, DELIVERED)
+      operationId: updateShipmentStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: shipmentId
+          in: path
+          required: true
+          description: Shipment UUID
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: true
+          description: New shipment status
+          schema:
+            type: string
+            enum: [PENDING, SHIPPED, IN_TRANSIT, DELIVERED, CANCELLED]
+      responses:
+        '200':
+          description: Shipment status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shipment'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from /api/auth/login endpoint.
+        Include as: Authorization: Bearer {token}
+
+  schemas:
+    # Authentication & User Schemas
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+        - name
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: johndoe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: SecurePass123!
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: John Doe
+        role:
+          type: string
+          enum: [CUSTOMER, SELLER]
+          default: CUSTOMER
+          example: CUSTOMER
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: johndoe
+        password:
+          type: string
+          format: password
+          example: SecurePass123!
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresAt:
+          type: integer
+          format: int64
+          description: Token expiration timestamp in milliseconds
+          example: 1732715400000
+        user:
+          $ref: '#/components/schemas/UserDTO'
+
+    UserDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: johndoe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        name:
+          type: string
+          example: John Doe
+        role:
+          type: string
+          enum: [CUSTOMER, SELLER, ADMIN]
+          example: CUSTOMER
+        active:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: 2024-11-27T12:00:00Z
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2024-11-27T12:00:00Z
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: John Updated Doe
+        email:
+          type: string
+          format: email
+          example: johnupdated@example.com
+        password:
+          type: string
+          format: password
+          description: New password (optional)
+
+    # Product Schemas
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - description
+        - category
+        - price
+        - currency
+        - sku
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 200
+          example: Wireless Bluetooth Headphones
+        description:
+          type: string
+          minLength: 10
+          maxLength: 2000
+          example: Premium noise-cancelling headphones with 30-hour battery life
+        category:
+          type: string
+          example: Electronics
+        price:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 149.99
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, INR]
+          example: USD
+        sku:
+          type: string
+          example: WBH-001
+        imageUrl:
+          type: string
+          format: uri
+          example: https://example.com/images/headphones.jpg
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        name:
+          type: string
+          example: Wireless Bluetooth Headphones
+        description:
+          type: string
+          example: Premium noise-cancelling headphones
+        category:
+          type: string
+          example: Electronics
+        price:
+          type: number
+          format: double
+          example: 149.99
+        currency:
+          type: string
+          example: USD
+        sku:
+          type: string
+          example: WBH-001
+        imageUrl:
+          type: string
+          example: https://example.com/images/headphones.jpg
+        sellerId:
+          type: integer
+          format: int64
+          example: 2
+        status:
+          type: string
+          enum: [AVAILABLE, OUT_OF_STOCK, DISCONTINUED]
+          example: AVAILABLE
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        price:
+          type: number
+          format: double
+        currency:
+          type: string
+        sku:
+          type: string
+        imageUrl:
+          type: string
+        sellerId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [AVAILABLE, OUT_OF_STOCK, DISCONTINUED]
+
+    # Cart Schemas
+    UpdateCartItemRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        quantity:
+          type: integer
+          description: Positive to add/update, negative to remove
+          example: 2
+
+    Cart:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+
+    CartItem:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        quantity:
+          type: integer
+          example: 2
+        price:
+          type: number
+          format: double
+          example: 149.99
+
+    # Order Schemas
+    CreateOrderRequest:
+      type: object
+      properties:
+        shippingAddress:
+          type: string
+          example: 123 Main St, Springfield, IL 62701
+        paymentMethod:
+          type: string
+          enum: [CREDIT_CARD, DEBIT_CARD, UPI, NET_BANKING]
+          example: CREDIT_CARD
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        totalPrice:
+          type: number
+          format: double
+          example: 299.98
+        status:
+          type: string
+          enum: [PLACED, PAYMENT_PENDING, PAYMENT_FAILED, CONFIRMED, SHIPPED, DELIVERED, CANCELLED, FAILED, OUT_OF_STOCK]
+          example: PLACED
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        idempotencyKey:
+          type: string
+          example: order-123-456
+        checkoutBatchId:
+          type: string
+          example: batch-789
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: integer
+          format: int64
+        totalPrice:
+          type: number
+          format: double
+        status:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+        price:
+          type: number
+          format: double
+
+    # Payment Schemas
+    PaymentRequest:
+      type: object
+      required:
+        - orderId
+        - userId
+        - amount
+        - currency
+        - paymentMethod
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        amount:
+          type: number
+          format: double
+          example: 299.98
+        currency:
+          type: string
+          example: USD
+        paymentMethod:
+          type: string
+          enum: [CREDIT_CARD, DEBIT_CARD, UPI, NET_BANKING]
+          example: CREDIT_CARD
+        status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILED]
+          example: PENDING
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        orderId:
+          type: string
+          format: uuid
+        userId:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+        paymentMethod:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILED]
+        transactionId:
+          type: string
+        idempotencyKey:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaymentWebhook:
+      type: object
+      required:
+        - transactionId
+        - orderId
+        - status
+        - amount
+        - currency
+      properties:
+        transactionId:
+          type: string
+          example: txn_1234567890
+        orderId:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        status:
+          type: string
+          enum: [SUCCESS, FAILED]
+          example: SUCCESS
+        amount:
+          type: number
+          format: double
+          example: 299.98
+        currency:
+          type: string
+          example: USD
+
+    # Inventory Schemas
+    InventoryRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        quantity:
+          type: integer
+          description: Positive to add, negative to reduce
+          example: 100
+
+    Inventory:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+        reservedQuantity:
+          type: integer
+        availableQuantity:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Shipping Schemas
+    Shipment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        userId:
+          type: integer
+          format: int64
+        address:
+          type: string
+        trackingNumber:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, SHIPPED, IN_TRANSIT, DELIVERED, CANCELLED]
+        estimatedDeliveryDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Error Schema
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: An error occurred
+        message:
+          type: string
+          example: Detailed error message
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          example: /api/products
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or token invalid/expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Unauthorized
+            message: Full authentication is required to access this resource
+
+# Event-Driven Architecture (Kafka Topics)
+# Note: These are internal events and not exposed as REST endpoints
+x-kafka-topics:
+  order.inventory.reserve.request:
+    description: Order Service → Inventory Service to reserve stock
+    producer: Order Service
+    consumer: Inventory Service
+    payload:
+      orderId: UUID
+      productId: UUID
+      quantity: integer
+      userId: integer
+  
+  inventory.order.reserve.response:
+    description: Inventory Service → Order Service with reservation result
+    producer: Inventory Service
+    consumer: Order Service
+    payload:
+      orderId: UUID
+      status: string (SUCCESS/FAILED)
+      reservationId: UUID
+      message: string
+  
+  order.payment.request:
+    description: Order Service → Payment Service to process payment
+    producer: Order Service
+    consumer: Payment Service
+    payload:
+      orderId: UUID
+      amount: double
+      currency: string
+      userId: integer
+      paymentMethod: string
+  
+  payment.order.response:
+    description: Payment Service → Order Service with payment result
+    producer: Payment Service
+    consumer: Order Service
+    payload:
+      orderId: UUID
+      status: string (SUCCESS/FAILED)
+      transactionId: string
+      message: string
+  
+  order.shipping.request:
+    description: Order Service → Shipping Service to create shipment
+    producer: Order Service
+    consumer: Shipping Service
+    payload:
+      orderId: UUID
+      address: string
+      items: array
+      userId: integer
+  
+  shipping.order.response:
+    description: Shipping Service → Order Service with shipment result
+    producer: Shipping Service
+    consumer: Order Service
+    payload:
+      orderId: UUID
+      status: string
+      trackingNumber: string
+      estimatedDate: date-time
+  
+  order.notification.request:
+    description: Order Service → Notification Service to send notifications
+    producer: Order Service
+    consumer: Notification Service
+    payload:
+      orderId: UUID
+      userId: integer
+      type: string
+      templateId: string
+      data: object

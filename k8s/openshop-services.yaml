@@ -1,0 +1,964 @@
+---
+# ============================================================================
+# PostgreSQL Databases
+# ============================================================================
+
+# User Database
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-user-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-user
+  template:
+    metadata:
+      labels:
+        app: postgres-user
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "userdb"
+        - name: POSTGRES_USER
+          value: "openshop"
+        - name: POSTGRES_PASSWORD
+          value: "openshop123"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-user-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-user
+spec:
+  selector:
+    app: postgres-user
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+# Product Database
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-product-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-product
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-product
+  template:
+    metadata:
+      labels:
+        app: postgres-product
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "productdb"
+        - name: POSTGRES_USER
+          value: "openshop"
+        - name: POSTGRES_PASSWORD
+          value: "openshop123"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-product-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-product
+spec:
+  selector:
+    app: postgres-product
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+# Order Database
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-order-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-order
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-order
+  template:
+    metadata:
+      labels:
+        app: postgres-order
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "orderdb"
+        - name: POSTGRES_USER
+          value: "openshop"
+        - name: POSTGRES_PASSWORD
+          value: "openshop123"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-order-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-order
+spec:
+  selector:
+    app: postgres-order
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+# Cart Database
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-cart-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-cart
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-cart
+  template:
+    metadata:
+      labels:
+        app: postgres-cart
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "cartdb"
+        - name: POSTGRES_USER
+          value: "openshop"
+        - name: POSTGRES_PASSWORD
+          value: "openshop123"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-cart-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-cart
+spec:
+  selector:
+    app: postgres-cart
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+# Inventory Database
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-inventory-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-inventory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-inventory
+  template:
+    metadata:
+      labels:
+        app: postgres-inventory
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "inventorydb"
+        - name: POSTGRES_USER
+          value: "openshop"
+        - name: POSTGRES_PASSWORD
+          value: "openshop123"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-inventory-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-inventory
+spec:
+  selector:
+    app: postgres-inventory
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+# Payment Database
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-payment-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-payment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-payment
+  template:
+    metadata:
+      labels:
+        app: postgres-payment
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "paymentdb"
+        - name: POSTGRES_USER
+          value: "openshop"
+        - name: POSTGRES_PASSWORD
+          value: "openshop123"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-payment-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-payment
+spec:
+  selector:
+    app: postgres-payment
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+# Notification Database
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-notification-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-notification
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-notification
+  template:
+    metadata:
+      labels:
+        app: postgres-notification
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "notificationdb"
+        - name: POSTGRES_USER
+          value: "openshop"
+        - name: POSTGRES_PASSWORD
+          value: "openshop123"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-notification-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-notification
+spec:
+  selector:
+    app: postgres-notification
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+# Shipping Database
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-shipping-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-shipping
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-shipping
+  template:
+    metadata:
+      labels:
+        app: postgres-shipping
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "shippingdb"
+        - name: POSTGRES_USER
+          value: "openshop"
+        - name: POSTGRES_PASSWORD
+          value: "openshop123"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-shipping-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-shipping
+spec:
+  selector:
+    app: postgres-shipping
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+# ============================================================================
+# Microservices
+# ============================================================================
+
+# User Service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  labels:
+    app: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: user-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+        env:
+        - name: SERVER_PORT
+          value: "8081"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-user:5432/userdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "openshop"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "openshop123"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.dialect.PostgreSQLDialect"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+  - port: 8081
+    targetPort: 8081
+  type: ClusterIP
+
+# Inventory Service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  labels:
+    app: inventory-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+    spec:
+      containers:
+      - name: inventory-service
+        image: inventory-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8086
+        env:
+        - name: SERVER_PORT
+          value: "8086"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-inventory:5432/inventorydb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "openshop"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "openshop123"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.dialect.PostgreSQLDialect"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+spec:
+  selector:
+    app: inventory-service
+  ports:
+  - port: 8086
+    targetPort: 8086
+  type: ClusterIP
+
+# Product Service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  labels:
+    app: product-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+    spec:
+      containers:
+      - name: product-service
+        image: product-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8082
+        env:
+        - name: SERVER_PORT
+          value: "8082"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"
+        - name: INVENTORY_SERVICE_URL
+          value: "http://inventory-service:8086"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-product:5432/productdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "openshop"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "openshop123"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.dialect.PostgreSQLDialect"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+spec:
+  selector:
+    app: product-service
+  ports:
+  - port: 8082
+    targetPort: 8082
+  type: ClusterIP
+
+# Payment Service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  labels:
+    app: payment-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+      - name: payment-service
+        image: payment-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8084
+        env:
+        - name: SERVER_PORT
+          value: "8084"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-payment:5432/paymentdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "openshop"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "openshop123"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.dialect.PostgreSQLDialect"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+spec:
+  selector:
+    app: payment-service
+  ports:
+  - port: 8084
+    targetPort: 8084
+  type: ClusterIP
+
+# Order Service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  labels:
+    app: order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+      - name: order-service
+        image: order-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8083
+        env:
+        - name: SERVER_PORT
+          value: "8083"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"
+        - name: PAYMENT_SERVICE_URL
+          value: "http://payment-service:8084"
+        - name: INVENTORY_SERVICE_URL
+          value: "http://inventory-service:8086"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-order:5432/orderdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "openshop"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "openshop123"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.dialect.PostgreSQLDialect"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+spec:
+  selector:
+    app: order-service
+  ports:
+  - port: 8083
+    targetPort: 8083
+  type: ClusterIP
+
+# Cart Service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-service
+  labels:
+    app: cart-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart-service
+  template:
+    metadata:
+      labels:
+        app: cart-service
+    spec:
+      containers:
+      - name: cart-service
+        image: cart-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8085
+        env:
+        - name: SERVER_PORT
+          value: "8085"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"
+        - name: PRODUCT_SERVICE_URL
+          value: "http://product-service:8082"
+        - name: ORDER_SERVICE_URL
+          value: "http://order-service:8083"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-cart:5432/cartdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "openshop"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "openshop123"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.dialect.PostgreSQLDialect"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-service
+spec:
+  selector:
+    app: cart-service
+  ports:
+  - port: 8085
+    targetPort: 8085
+  type: ClusterIP
+
+# Notification Service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  labels:
+    app: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+      - name: notification-service
+        image: notification-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8087
+        env:
+        - name: SERVER_PORT
+          value: "8087"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-notification:5432/notificationdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "openshop"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "openshop123"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.dialect.PostgreSQLDialect"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+  - port: 8087
+    targetPort: 8087
+  type: ClusterIP
+
+# Shipping Service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipping-service
+  labels:
+    app: shipping-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipping-service
+  template:
+    metadata:
+      labels:
+        app: shipping-service
+    spec:
+      containers:
+      - name: shipping-service
+        image: shipping-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8088
+        env:
+        - name: SERVER_PORT
+          value: "8088"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-shipping:5432/shippingdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "openshop"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "openshop123"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        - name: SPRING_JPA_DATABASE_PLATFORM
+          value: "org.hibernate.dialect.PostgreSQLDialect"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipping-service
+spec:
+  selector:
+    app: shipping-service
+  ports:
+  - port: 8088
+    targetPort: 8088
+  type: ClusterIP
+
+# API Gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  labels:
+    app: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: api-gateway:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SERVER_PORT
+          value: "8080"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "default"
+        - name: USER_SERVICE_URL
+          value: "http://user-service:8081"
+        - name: PRODUCT_SERVICE_URL
+          value: "http://product-service:8082"
+        - name: ORDER_SERVICE_URL
+          value: "http://order-service:8083"
+        - name: CART_SERVICE_URL
+          value: "http://cart-service:8085"
+        - name: INVENTORY_SERVICE_URL
+          value: "http://inventory-service:8086"
+        - name: PAYMENT_SERVICE_URL
+          value: "http://payment-service:8084"
+        - name: NOTIFICATION_SERVICE_URL
+          value: "http://notification-service:8087"
+        - name: SHIPPING_SERVICE_URL
+          value: "http://shipping-service:8088"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+spec:
+  selector:
+    app: api-gateway
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: LoadBalancer

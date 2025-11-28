@@ -1,0 +1,66 @@
+---
+# ============================================================================
+# OpenShop UI Deployment
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshop-ui
+  namespace: openshop
+  labels:
+    app: openshop-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openshop-ui
+  template:
+    metadata:
+      labels:
+        app: openshop-ui
+    spec:
+      containers:
+      - name: openshop-ui
+        image: openshop-ui:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshop-ui
+  namespace: openshop
+  labels:
+    app: openshop-ui
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: openshop-ui

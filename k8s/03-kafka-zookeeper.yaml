@@ -1,0 +1,349 @@
+# =========================================================================================
+# OpenShop Kafka Configuration using Strimzi Operator
+# =========================================================================================
+#
+# This file configures Apache Kafka 4.1.1 in KRaft mode (NO ZOOKEEPER) using Strimzi
+#
+# ARCHITECTURE:
+# - Uses Strimzi Kafka Operator for declarative Kafka management
+# - KRaft mode: Modern Kafka without ZooKeeper dependency
+# - KafkaNodePool: Defines nodes with combined broker+controller roles
+# - Single-node setup optimized for development/testing
+# - 4 pre-configured topics for microservices events
+#
+# PREREQUISITE - INSTALL STRIMZI OPERATOR FIRST:
+# ================================================
+# The Strimzi operator must be installed before applying this file:
+#
+#   kubectl create namespace openshop
+#   kubectl create -f 'https://strimzi.io/install/latest?namespace=openshop' -n openshop
+#   kubectl wait --for=condition=ready pod -l name=strimzi-cluster-operator -n openshop --timeout=300s
+#
+# OR simply run: ./build-and-deploy.sh kafka
+# (The script will automatically install Strimzi if not present)
+#
+# =========================================================================================
+
+---
+# =========================
+# Kafka Node Pool (Required for KRaft mode)
+# =========================
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: broker
+  namespace: openshop
+  labels:
+    strimzi.io/cluster: openshop-kafka
+spec:
+  replicas: 1
+  roles:
+    - broker
+    - controller
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 2Gi
+        deleteClaim: false
+        class: standard
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: 1000m
+
+---
+# =========================
+# Kafka Cluster using Strimzi (KRaft Mode)
+# =========================
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: openshop-kafka
+  namespace: openshop
+  annotations:
+    strimzi.io/kraft: enabled
+    strimzi.io/node-pools: enabled
+spec:
+  # --------------------
+  # Kafka Configuration
+  # --------------------
+  kafka:
+    version: 4.1.1
+    metadataVersion: 4.1-IV0
+    
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+    
+    config:
+      # Single node configuration
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      
+      # Auto create topics
+      auto.create.topics.enable: true
+      
+      # Performance settings
+      num.partitions: 3
+      num.network.threads: 3
+      num.io.threads: 8
+      socket.send.buffer.bytes: 102400
+      socket.receive.buffer.bytes: 102400
+      socket.request.max.bytes: 104857600
+      
+      # Log settings
+      log.retention.hours: 168
+      log.segment.bytes: 1073741824
+      log.retention.check.interval.ms: 300000
+      
+      # Group coordination settings
+      group.initial.rebalance.delay.ms: 0
+    
+    # Liveness and readiness probes
+    livenessProbe:
+      initialDelaySeconds: 90
+      timeoutSeconds: 10
+      periodSeconds: 15
+      failureThreshold: 5
+    
+    readinessProbe:
+      initialDelaySeconds: 60
+      timeoutSeconds: 10
+      periodSeconds: 10
+      failureThreshold: 10
+  
+  # --------------------
+  # Entity Operator Configuration
+  # --------------------
+  # Manages topics and users
+  entityOperator:
+    topicOperator:
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 500m
+    
+    userOperator:
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 500m
+
+---
+# =========================
+# Kafka Topics (Optional - Auto-created if not defined)
+# =========================
+# Strimzi can manage Kafka topics as Kubernetes resources
+# These will be auto-created when applications produce to them due to auto.create.topics.enable: true
+# But you can also define them explicitly for better control
+
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-events
+  namespace: openshop
+  labels:
+    strimzi.io/cluster: openshop-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000  # 7 days
+    segment.bytes: 1073741824
+    compression.type: producer
+
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: payment-events
+  namespace: openshop
+  labels:
+    strimzi.io/cluster: openshop-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000  # 7 days
+    segment.bytes: 1073741824
+    compression.type: producer
+
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: inventory-events
+  namespace: openshop
+  labels:
+    strimzi.io/cluster: openshop-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000  # 7 days
+    segment.bytes: 1073741824
+    compression.type: producer
+
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: shipping-events
+  namespace: openshop
+  labels:
+    strimzi.io/cluster: openshop-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000  # 7 days
+    segment.bytes: 1073741824
+    compression.type: producer
+
+---
+# =========================================================================================
+# DEPLOYMENT INSTRUCTIONS & REFERENCE
+# =========================================================================================
+#
+# QUICK START:
+# ============
+# 1. Install Strimzi operator (if not already installed):
+#    kubectl create -f 'https://strimzi.io/install/latest?namespace=openshop' -n openshop
+#
+# 2. Apply this configuration:
+#    kubectl apply -f k8s/03-kafka-zookeeper.yaml
+#
+# 3. Wait for Kafka cluster to be ready:
+#    kubectl wait kafka/openshop-kafka --for=condition=Ready --timeout=300s -n openshop
+#
+# 4. Verify deployment:
+#    kubectl get kafka,kafkanodepool,kafkatopic -n openshop
+#    kubectl get pods -l strimzi.io/cluster=openshop-kafka -n openshop
+#
+# KAFKA SERVICE ENDPOINTS:
+# ========================
+# - Bootstrap Server (PLAINTEXT): openshop-kafka-kafka-bootstrap:9092
+# - Bootstrap Server (TLS):       openshop-kafka-kafka-bootstrap:9093
+#
+# Use in Spring Boot application.yml:
+#   spring.kafka.bootstrap-servers: openshop-kafka-kafka-bootstrap:9092
+#
+# DEPLOYED COMPONENTS:
+# ===================
+# 1. KafkaNodePool "broker" - Manages Kafka broker/controller nodes
+# 2. Kafka "openshop-kafka" - Main Kafka cluster resource
+# 3. KafkaTopic resources:
+#    - order-events (3 partitions, 7-day retention)
+#    - payment-events (3 partitions, 7-day retention)
+#    - inventory-events (3 partitions, 7-day retention)
+#    - shipping-events (3 partitions, 7-day retention)
+#
+# MONITORING & MANAGEMENT:
+# ========================
+# Check Kafka cluster status:
+#   kubectl get kafka openshop-kafka -n openshop
+#   kubectl describe kafka openshop-kafka -n openshop
+#
+# List all topics:
+#   kubectl get kafkatopic -n openshop
+#
+# View Kafka broker logs:
+#   kubectl logs -n openshop -f openshop-kafka-broker-0 -c kafka
+#
+# View Entity Operator logs:
+#   kubectl logs -n openshop -f deployment/openshop-kafka-entity-operator
+#
+# View Strimzi operator logs:
+#   kubectl logs -n openshop -f deployment/strimzi-cluster-operator
+#
+# Execute Kafka commands in broker pod:
+#   kubectl exec -n openshop -it openshop-kafka-broker-0 -c kafka -- \
+#     bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+#
+#   kubectl exec -n openshop -it openshop-kafka-broker-0 -c kafka -- \
+#     bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+#     --topic order-events --from-beginning
+#
+# RESOURCE ALLOCATION:
+# ===================
+# Kafka Broker:
+#   - CPU: 250m request, 1000m limit
+#   - Memory: 512Mi request, 1Gi limit
+#   - Storage: 2Gi persistent volume
+#
+# Entity Operator (Topic & User Operators):
+#   - CPU: 100m request, 500m limit each
+#   - Memory: 128Mi request, 256Mi limit each
+#
+# CONFIGURATION DETAILS:
+# =====================
+# - Kafka Version: 4.1.1 (latest stable)
+# - Metadata Version: 4.1-IV0
+# - Mode: KRaft (No ZooKeeper)
+# - Replication Factor: 1 (single node setup)
+# - Auto Topic Creation: Enabled
+# - Default Partitions: 3 per topic
+# - Log Retention: 7 days (168 hours)
+#
+# BENEFITS OF STRIMZI:
+# ===================
+# ✓ Declarative Kafka management via Kubernetes CRDs
+# ✓ Automatic rolling updates and upgrades
+# ✓ Built-in support for KRaft mode (no ZooKeeper overhead)
+# ✓ Topic and user management as Kubernetes resources
+# ✓ Easy horizontal scaling
+# ✓ TLS encryption and SASL authentication support
+# ✓ Integration with Prometheus for monitoring
+# ✓ Automatic pod disruption budget management
+# ✓ Custom resource status reporting
+#
+# TROUBLESHOOTING:
+# ===============
+# If Kafka cluster is not ready:
+#   kubectl describe kafka openshop-kafka -n openshop
+#   kubectl get events -n openshop --sort-by='.lastTimestamp'
+#
+# If topics are not ready:
+#   kubectl describe kafkatopic <topic-name> -n openshop
+#
+# Check operator health:
+#   kubectl get pods -n openshop -l name=strimzi-cluster-operator
+#
+# SCALING (for production):
+# =========================
+# To scale to 3 brokers:
+#   1. Update KafkaNodePool replicas to 3
+#   2. Update replication factors in Kafka config to 2 or 3
+#   3. Apply changes: kubectl apply -f k8s/03-kafka-zookeeper.yaml
+#
+# CLEANUP:
+# ========
+# To remove Kafka cluster (keeps operator):
+#   kubectl delete kafka openshop-kafka -n openshop
+#   kubectl delete kafkanodepool broker -n openshop
+#
+# To completely remove Strimzi:
+#   kubectl delete -f k8s/03-kafka-zookeeper.yaml
+#   kubectl delete -f 'https://strimzi.io/install/latest?namespace=openshop' -n openshop
+#
+# =========================================================================================

@@ -1,0 +1,130 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: apigateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            # ---------------------------
+            # User Service (Public Routes)
+            # ---------------------------
+            - id: user-service
+              uri: ${USER_SERVICE_URL:http://user-service:8081}
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - AddRequestHeader=X-Gateway, SpringCloudGateway
+
+            # ---------------------------
+            # Protected User Routes
+            # ---------------------------
+            - id: user-service-protected
+              uri: ${USER_SERVICE_URL:http://user-service:8081}
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - name: JwtRequestFilter
+
+            # ---------------------------
+            # Product Service - GraphQL (External Access Only)
+            # ---------------------------
+            - id: product-service-graphql
+              uri: ${PRODUCT_SERVICE_URL:http://product-service:8082}
+              predicates:
+                - Path=/graphql/products
+              filters:
+                - JwtRequestFilter
+                - RewritePath=/graphql/products, /graphql
+
+            # ---------------------------
+            # Product Service - GraphiQL (Development/Testing)
+            # ---------------------------
+            - id: product-service-graphiql
+              uri: ${PRODUCT_SERVICE_URL:http://product-service:8082}
+              predicates:
+                - Path=/graphiql/products
+              filters:
+                - RewritePath=/graphiql/products, /graphiql
+
+            # ---------------------------
+            # Product Service - REST (REMOVED FROM EXTERNAL ACCESS)
+            # Internal services (CartService, InventoryService) access directly
+            # via service URLs (http://product-service:8082/api/products/**)
+            # ---------------------------
+            # COMMENTED OUT - No longer exposed externally
+            # - id: product-service-rest
+            #   uri: ${PRODUCT_SERVICE_URL:http://product-service:8082}
+            #   predicates:
+            #     - Path=/api/products/**
+            #   filters:
+            #     - JwtRequestFilter
+
+            # ---------------------------
+            # Order Service
+            # ---------------------------
+            - id: order-service
+              uri: ${ORDER_SERVICE_URL:http://order-service:8083}
+              predicates:
+                - Path=/api/orders/**
+              filters:
+                - JwtRequestFilter
+
+            # ---------------------------
+            # Inventory Service
+            # ---------------------------
+            - id: inventory-service
+              uri: ${INVENTORY_SERVICE_URL:http://inventory-service:8086}
+              predicates:
+                - Path=/api/inventory/**
+              filters:
+                - JwtRequestFilter
+
+            # ---------------------------
+            # Cart Service
+            # ---------------------------
+            - id: cart-service
+              uri: ${CART_SERVICE_URL:http://cart-service:8085}
+              predicates:
+                - Path=/api/cart/**
+              filters:
+                - JwtRequestFilter
+
+            # ---------------------------
+            # Payment Service
+            # ---------------------------
+            - id: payment-service
+              uri: ${PAYMENT_SERVICE_URL:http://payment-service:8084}
+              predicates:
+                - Path=/api/payments/**
+              filters:
+                - JwtRequestFilter
+
+            # ---------------------------
+            # Shipping Service
+            # ---------------------------
+            - id: shipping-service
+              uri: ${SHIPPING_SERVICE_URL:http://shipping-service:8088}
+              predicates:
+                - Path=/api/shipping/**
+              filters:
+                - JwtRequestFilter
+
+jwt:
+  secret: q09hQkwBA5H1SKELTBwDSaKYsr5Jaep4d8PBXTjSGGk=
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.openshop.apigateway: INFO
+    com.openshop.apigateway.filter.GlobalLoggingFilter: INFO
+    com.openshop.apigateway.filter.CorsLoggingFilter: INFO
+    com.openshop.apigateway.config.JwtRequestFilter: INFO
+    org.springframework.cloud.gateway: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
