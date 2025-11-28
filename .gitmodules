@@ -16,3 +16,6 @@
 [submodule "order-service"]
 	path = order-service
 	url = https://github.com/archie46/order-service.git
+[submodule "shipping-service"]
+	path = shipping-service
+	url = https://github.com/CuriousRadhika/OpenShop-ShippingService
