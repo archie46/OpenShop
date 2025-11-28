@@ -4,3 +4,6 @@
 [submodule "Product_Service"]
 	path = Product_Service
 	url = https://github.com/abhishek5024/Product_Service.git
+[submodule "payment-service"]
+	path = payment-service
+	url = https://github.com/yashmallik/payment-service
