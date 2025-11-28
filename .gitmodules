@@ -1,6 +1,15 @@
 [submodule "user-service"]
 	path = user-service
 	url = https://github.com/archie46/user-service.git
+[submodule "Product_Service"]
+	path = Product_Service
+	url = https://github.com/abhishek5024/Product_Service.git
+[submodule "payment-service"]
+	path = payment-service
+	url = https://github.com/yashmallik/payment-service
+[submodule "inventory-service"]
+	path = inventory-service
+	url = https://github.com/hrp13/inventory-service.git
 [submodule "cart-service"]
 	path = cart-service
 	url = https://github.com/archie46/cart-service.git
